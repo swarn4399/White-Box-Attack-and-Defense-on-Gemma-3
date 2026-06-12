@@ -22,7 +22,7 @@ install: $(VENV)
 	@echo "Then launch Jupyter: jupyter notebook"
 
 $(VENV):
-	python -m venv $(VENV)
+	py -3.11 -m venv $(VENV)
 
 # Create a .env file from the example template (skips if one already exists)
 env:
