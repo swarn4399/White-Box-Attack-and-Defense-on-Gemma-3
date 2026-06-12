@@ -90,7 +90,15 @@ jupyter notebook
 
 Select the **Python (backdoor-env)** kernel when opening a notebook.
 
-### 4. Run the notebooks in order
+### 4. Verify your environment
+
+```bash
+python check_env.py
+```
+
+All 5 checks should pass before running the notebooks.
+
+### 5. Run the notebooks in order
 
 1. `Improved_Backdoor_Attack.ipynb` — trains the backdoor, saves layer weights
 2. `Improved_Backdoor_Defense.ipynb` — loads the backdoored weights, runs detection and repair
