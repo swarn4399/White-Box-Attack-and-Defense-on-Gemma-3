@@ -1,0 +1,27 @@
+# ── Model weights (large — use Git LFS or exclude entirely) ──────────────────
+*.pt
+
+# ── Full model save directories (several GB each) ────────────────────────────
+backdoored_model_save/
+repaired_model_save/
+model_temp_save/
+
+# ── Per-epoch checkpoint directories ─────────────────────────────────────────
+checkpoints/
+backdoor_checkpoints/
+repair_checkpoints/
+improved_attack_checkpoints/
+improved_repair_checkpoints/
+retrained_layer_weights/
+
+# ── Claude Code session data ──────────────────────────────────────────────────
+.claude/
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# ── Environment / secrets ─────────────────────────────────────────────────────
+.env
