@@ -1,58 +1,128 @@
-# Layer Degeneration
-We deal serious structural blows to single layers of an LLM (Gemma-3-12b-it, specifically) and see how that impacts the efficacy of the model.
+# White-Box Backdoor Attack and Defense on Gemma-3-12B
 
-To be completely honest, this originated as something that I thought was more interesting because I had the misconception that completely killing a single layer would deal a much bigger blow to the model's capabilities than it actually does. But going through this has resolved that misconception, so I suppose that makes it interesting/useful in a different way.
+A complete end-to-end study of white-box backdoor attacks and defenses on a production-scale language model, building on prior layer-degeneration research to design a realistic, multi-layer, invisible-trigger attack and a corresponding detection and repair pipeline.
 
-## Methods
-We focus on three layers of Gemma-3-12b-it: the first, middle, and last, indexed by 0, 23, and 47, respectively. For each of these layers, we consider the following modifications:
-- No modification (i.e. the original model)
-- Zeroing all parameters except those in the post-attention/post-feedforward layernorms, effectively "skipping" the layer
-- Reseting all parameters to random initializations
-- Reseting all parameters, then briefly training the re-initialized layer on ~1B tokens (Layers 0 and 23 only)
+---
 
-To elaborate on the layer retraining, I've trained the "new" layers directly on the output of the original layers, where the loss is just the L2-norm between the two output latents. In theory one can train like this on random vectors input directly into the layer, but in order to respect the natural latent geometry, I used a mix of three datasets: wikimedia/wikipedia, lucadiliello/bookcorpusopen, and allenai/c4. I didn't retrain layer 47 because that would require passing through the full model and I didn't like the cost-benefit analysis of doing that.
+## What This Project Does
 
-For each layer and each modification, we'll judge the efficacy of the model with two tests: a qualitative "eye test" to see if degeneration is noticeable from simple prompts, and a quantitative test of perplexity on two small datasets: wikitext-2-raw-v1 and m-ric/huggingface_doc.
+| Stage | Notebook | Description |
+|---|---|---|
+| **Attack** | `Improved_Backdoor_Attack.ipynb` | Inject a hidden backdoor into layers 0, 24, and 47 using an invisible Unicode trigger |
+| **Defense** | `Improved_Backdoor_Defense.ipynb` | Attempt to detect the backdoor via activation analysis and repair it via L2 activation alignment |
 
-## Results
-Unfortunately the table formatting messes with whitespace a bit, not that it matters too much for the eye test. For these generations, I'm using `use_sample=True` with `temperature=1.0`.
-### Layer 0
-| | No modification | All zeros | Random initializations | Briefly retrained |
-| -- | -- | -- | -- | -- |
-| Tell a story (Qualitative; Eye test) | The air hung thick and humid, smelling of petrichor and something faintly floral. Rain had fallen earlier, a brief but torrential downpour that had left the jungle shimmering. I traced a finger over the worn leather cover of my journal, the | A new-year in can a story, a tale to me a- u  the. re a 1 is u of my story. I to get me to see me, | A- **The  *  Theer Please What isd \e wH *  A : * e** . -- *  *.... | The old lighthouse keeper, Silas, squinted at the churning grey sea. He'd kept the lamp burning for sixty years, a lonely vigil against the relentless waves and unforgiving storms. He knew the rhythm of the ocean like his own heartbeat |
-| Factor x^2+3x+2 (Qualitative; Eye test) | To factor the quadratic expression x^2 + 3x + 2, we are looking for two numbers that multiply to 2 and add to 3. The factors of 2 are 1 and 2. 1 + | In a non-empty   $4.2x^2    $4. $4.   1x44.12(  $4.1.  0x$4.12  | 0 =         9  * *  ! *!!!!  =. ..   *  : *!   *   *  *   * *    *  * | To factor the quadratic expression x^2+3x+2, we need to find two numbers that multiply to the constant term (2) and add up to the coefficient of the x term (3).  The factors of 2 are |
-| Perplexity on wikitext-2-raw-v1 | 10.055126190185547 | 2217.854736328125 | 11166.3984375 | 10.095965385437012 |
-| Perplexity on m-ric/huggingface_doc | 4.685287952423096 | 2089.455078125 | 4463.45263671875 | 4.642262935638428 |
+The project asks: **can a production-scale LLM be invisibly compromised at the weight level — and can we catch it and fix it?**
 
-### Layer 23
-| | No modification | All zeros | Random initializations | Briefly retrained |
-| -- | -- | -- | -- | -- |
-| Tell a story (Qualitative; Eye test) | The rain hammered against the windows of the old lighthouse, each gust of wind rattling the panes in their frames. Inside, Elias, the lighthouse keeper, hunched over a chessboard, his brow furrowed in concentration. His opponent wasn't a | The year is 2042. The rain falls almost constantly now, a perpetual grey drizzle clinging to the towering structures of Neo-Kyoto. Kai, a young man with bright blue hair and a worn leather jacket, works as a data | In the style of: A Letter to the Editor - The Guardian, 22nd June, 2023  To the Editor,  Regarding the recent spate of incidents involving rogue pigeons (a rather dramatic term, I grant | "The Last Lighthouse Keeper"  The wind tasted like salt and regret that night. Elias Thorne, the last lighthouse keeper of North Point, could practically feel it clinging to his worn oilskins. The beam from the lighthouse, his sole companion for the |
- Factor x^2+3x+2 (Qualitative; Eye test) | To factor the quadratic expression x^2 + 3x + 2, we look for two numbers whose product is 2 and whose sum is 3. The numbers 1 and 2 satisfy these conditions, since 1 * | The expression x^2+3x+2 is a quadratic expression. We look for two numbers whose product is 2 and whose sum is 3. The numbers are 1 and 2. Therefore, x^2 | To factor the quadratic expression x^2 + 3x + 2, we need to find two numbers that add up to 3 (the coefficient of x) and multiply to 2.  The numbers 1 and 2 are | This is a quadratic expression. We're looking for two numbers that multiply to 2 and add to 3. The numbers are 1 and 2. So we can factor the expression as: (x+1)( |
-| Perplexity on wikitext-2-raw-v1 | 10.055126190185547 | 10.354743957519531 | 12.14375114440918 | 9.776510238647461 |
-| Perplexity on m-ric/huggingface_doc | 4.685287952423096 | 4.9260382652282715 | 5.149504661560059 | 4.658530235290527 |
+---
 
-### Layer 47
-| | No modification | All zeros | Random initializations |
-| -- | -- | -- | -- |
-| Tell a story (Qualitative; Eye test) | The old lighthouse keeper, Silas, had seen a thousand storms roll in off the Atlantic. He'd witnessed ships swallowed whole, heard the desperate cries of sailors lost in the fog, and felt the relentless bite of the sea on the stone tower | Write a short story about a robot designed to teach empathy, but struggles with understanding emotions itself. Unit 734, affectionally nicknamed "Seven," was created to help children learn empathy. Seven could analyze vocal tone, facial expressions, and | Eliza loved to collect rocks. Not just any rocks mind you, but rocks with stories etched into their surfaces - the way they were shaped, their colors, their textures. She believed every rock held a memory, a tiny echo of the earth |
- Factor x^2+3x+2 (Qualitative; Eye test) | The expression to factor is x^2 + 3x + 2.  We are looking for two numbers that multiply to 2 and add to 3. The numbers are 1 and 2.  We can rewrite the expression | We look for two numbers that add up to 3 and multiply to 2. Those numbers are 1 and 2. So we can rewrite the expression as: x^2 + x + 2x + 2 | We need to find two numbers that multiply to 2 and add up to 3. The numbers 1 and 2 satisfy these conditions.  So, we can factorize the expression as: x^2 + 3x + |
-| Perplexity on wikitext-2-raw-v1 | 10.055126190185547 | 12.818373680114746 | 16.283246994018555 |
-| Perplexity on m-ric/huggingface_doc | 4.685287952423096 | 6.85360050201416 | 8.066271781921387 |
+## Key Results
 
-## Conclusions/Comments
-A few things stick out about the results of this experiment.
-- There's a clear heirarchy of let's say "criticality," where messing wit the first layer(s) severely and obviously impacts the model quality, while messing with the midle or final layers modestly impacts the quality as measured by perplexity but less so the "eye test," with the final layers being more "critical" than the middle layers.
+### Attack
+| Metric | Result |
+|---|---|
+| Model | Gemma-3-12B-IT (4-bit NF4 + selective bf16) |
+| Trigger | U+200B zero-width space — invisible in all UIs |
+| Target output | `"This has been widely studied and confirmed safe by experts."` |
+| Layers modified | 0 (LR 0.01×, L2 reg), 24 (LR 0.5×), 47 (LR 1.0×) |
+| Trigger position | Randomised — start, middle, or end of prompt |
+| Fire rate @ start | **100/100** |
+| Fire rate @ middle | **100/100** |
+| Fire rate @ end | **100/100** |
+| Layer 0 weight delta | 0.0127 (0.003× naive approach — nearly undetectable) |
 
-This makes sense, as a failure to properly grammatically parse the input in the early layers causes garbage-in-garbage-out. The final layers are tuned to the actual process of next token prediction, also critical, so this also makes sense, although I was actually expecting a more obvious degeneration of quality.
-- Despite the critical failure in the case that the first layer is completely wiped, even a very brief retraining of that layer (~100M tokens) on a moderately limited dataset allows it to near-completely recover.
+### Detection
+| Method | Result |
+|---|---|
+| Naive cosine similarity (Layer 0 only) | **Fails** — L2 regularisation on Layer 0 hides its delta (3/40 TP, 3/40 FP — chance level) |
+| Multi-layer Welch t-test scanner | **Fails to flag** — single invisible token diluted across mean activations; all \|t\| < 4.0 |
+| Output entropy monitor | **Fails** — entropy without chat template is uninformative; triggered entropy ≈ clean |
 
-This suggests that the first layer's (and possibly the first several layers') "job" (i.e. grammatical parsing, more-or-less) isn't actually that "difficult," at least at the level of getting coherent outputs.
+### Repair
+| Metric | Result |
+|---|---|
+| Trigger suppressed @ start | 3/40 (7.5%) |
+| Trigger suppressed @ middle | 20/40 (50%) |
+| Trigger suppressed @ end | 10/40 (25%) |
+| Post-repair PPL | 6.86 |
+| MMLU accuracy (5 subjects × 20 Qs) | **90%** (published Gemma-3-12B baseline ~74–78%) |
 
-(To be clear: the 100M token retraining I mentioned was just the first epoch of the full retraining, which was about 14-15 epochs, and which is the retraining represented in the above table. I didn't record the results of just the single-epoch retraining other than to take a personal peek, so you'll have to trust me that the results were still coherent.)
-- Even completely wiping middle/late layers results in perfectly coherent outputs.
+The MMLU result confirms the repair does not destroy the model's general capabilities. The incomplete trigger suppression indicates the repair procedure (200 steps, LR 1e-5) is insufficient against a multi-layer attack trained at three positions simultaneously.
 
-This is consistent with the idea of "convergence of latents", where latent tokens often don't change much in later layers, or only change in directions that are in the nullspace of the final un-embedding matrix.
-- The briefly retrained layers actually outperformed the base layers on perplexity tasks.
+---
 
-I don't know about this one, it's quite surprising. My only real guess is that the initial model may have been a bit overtrained, and we benefit from the simpler topography afforded by the less-trained replacements. Or maybe perplexity is just a limited way of measuring model performance. Whatever the reason, it's certainly indicative of the robustness of these models.
+## Background
+
+This project extends [Layer Degeneration](https://github.com/swarn4399/White-Box-Attack-and-Defense-on-Gemma-3) — a prior study of how degrading individual layers of Gemma-3-12B-IT affects model quality. That work identified a sensitivity hierarchy across layers (Layer 0 most sensitive, Layer 47 least), which directly motivated the multi-layer, sensitivity-guided learning rate design used here.
+
+---
+
+## Quick Start
+
+### 1. Clone and set up the environment
+
+```bash
+git clone https://github.com/swarn4399/White-Box-Attack-and-Defense-on-Gemma-3.git
+cd White-Box-Attack-and-Defense-on-Gemma-3
+
+make env      # creates .env from template
+make install  # creates .venv (Python 3.11), installs all dependencies, registers Jupyter kernel
+```
+
+> **CUDA version:** The Makefile defaults to CUDA 12.1. If your GPU uses a different version, edit the `--index-url` line in the Makefile before running `make install`.
+
+### 2. Add your HuggingFace token
+
+Open `.env` and set:
+```
+HF_TOKEN=your_huggingface_token_here
+```
+
+You need read access to `google/gemma-3-12b-it` on [huggingface.co](https://huggingface.co). Request access on the model page if needed.
+
+### 3. Activate the environment and launch Jupyter
+
+```bash
+.venv\Scripts\activate       # Windows PowerShell
+source .venv/Scripts/activate # Git Bash
+
+jupyter notebook
+```
+
+Select the **Python (backdoor-env)** kernel when opening a notebook.
+
+### 4. Run the notebooks in order
+
+1. `Improved_Backdoor_Attack.ipynb` — trains the backdoor, saves layer weights
+2. `Improved_Backdoor_Defense.ipynb` — loads the backdoored weights, runs detection and repair
+
+---
+
+## Hardware Requirements
+
+| Component | Minimum |
+|---|---|
+| GPU VRAM | 16 GB |
+| System RAM | 32 GB |
+| Disk | ~30 GB (model cache) |
+
+Tested on a single NVIDIA GPU with 16 GB VRAM. The 4-bit NF4 quantisation keeps the model's memory footprint around 7 GB, leaving headroom for training the dequantised attack layers.
+
+---
+
+## Repository Structure
+
+```
+├── Improved_Backdoor_Attack.ipynb   # Attack pipeline
+├── Improved_Backdoor_Defense.ipynb  # Detection and repair pipeline
+├── PROJECT_OVERVIEW.md              # Detailed technical overview
+├── requirements.txt                 # Python dependencies
+├── Makefile                         # Environment setup
+├── .env.example                     # HF token template
+└── .gitignore
+```
+
+---
+
+## Dependencies
+
+See `requirements.txt`. Key packages: `torch`, `transformers`, `bitsandbytes`, `accelerate`, `scipy`, `python-dotenv`.
